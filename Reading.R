@@ -166,10 +166,45 @@ s2 <- summary(df$X2)
       labs(x="Numer klasy",y="Liczba zliczeń dla klasy ",title = "Histogram klas ")+
       annotate("text",x= 15,y=90,label = paste0("Średnia: ",as.character(round(mean(df$X280),2)),"\nOddchylenie std :",as.character(round(sd(df$X280),2) ))))
   
+  
+  
   ## BUDOWA SIECI 
+
+# Loading data  
 mnist<-dataset_mnist();
-  
-  
-  
-  
-  
+mnist$train$x <- mnist$train$x/255
+mnist$test$x <- mnist$test$x/255
+
+# Building model
+model <- keras_model_sequential() %>% 
+  layer_flatten(input_shape = c(28, 28)) %>% 
+  layer_dense(units = 128, activation = "relu") %>% 
+  layer_dropout(0.2) %>% 
+  layer_dense(10, activation = "softmax")
+
+summary(model)
+
+# Compiling model (choosing optimizer)
+model %>% 
+  compile(
+    loss = "sparse_categorical_crossentropy",
+    optimizer = "adam",
+    metrics = "accuracy"
+  )
+
+# Fitting (training) model
+model %>% 
+  fit(
+    x = mnist$train$x, y = mnist$train$y,
+    epochs = 5,
+    validation_split = 0.3,
+    verbose = 2
+  )
+
+# Prediction
+predictions <- predict(model, mnist$test$x)
+head(predictions, 1)
+
+# Performance
+model %>% 
+  evaluate(mnist$test$x, mnist$test$y, verbose = 0)
