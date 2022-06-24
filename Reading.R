@@ -25,7 +25,7 @@ library(tensorflow)
 tf$constant("Hellow Tensorflow")  #TEST tutaj powienieneś dostać " tf.Tensor(b'Hellow Tensorflow', shape=(), dtype=string)'
 library(keras)
 install_keras()
-
+library(datasets)
 # Reading data
 path <- "Arrhythmia_MLR/arrhythmia.data"
 df <- read.table(path)
@@ -58,7 +58,7 @@ for(i in 1:ncol(df)) {
     #        median = median(value), q3= quantile(value, probs = 0.75))
 
 
-# Vizualizing
+# Visualizing
 s1 = summary(df$X1)
 #s1<- data.frame(unclass(summary(df$X1)), check.names = FALSE, stringsAsFactors = FALSE)
 
@@ -161,7 +161,7 @@ s2 <- summary(df$X2)
       annotate("text",x= 15,y=90,label = paste0("Średnia: ",as.character(round(mean(df$X21),2)),"\nOddchylenie std :",as.character(round(sd(df$X21),2) ))))
   
   s280 <- summary(df$X280)
-  (p21<-ggplot(df,aes(x=factor(`X280`)))+
+  (p280<-ggplot(df,aes(x=factor(`X280`)))+
       geom_histogram(stat = 'count')+
       labs(x="Numer klasy",y="Liczba zliczeń dla klasy ",title = "Histogram klas ")+
       annotate("text",x= 15,y=90,label = paste0("Średnia: ",as.character(round(mean(df$X280),2)),"\nOddchylenie std :",as.character(round(sd(df$X280),2) ))))
@@ -208,3 +208,101 @@ head(predictions, 1)
 # Performance
 model %>% 
   evaluate(mnist$test$x, mnist$test$y, verbose = 0)
+
+
+#IRIS 
+# iris[,5] <- as.numeric(iris[,5]) -1
+iris <- df
+iris[,279] <- as.numeric(iris[,279]) -1
+
+# Turn `iris` into a matrix
+iris <- as.matrix(iris)
+
+# Set iris `dimnames` to `NULL`
+dimnames(iris) <- NULL
+
+# Determine sample size
+ind <- sample(2, nrow(iris), replace=TRUE, prob=c(0.70, 0.30)) #createDataPartition caret
+
+# Split the `iris` data
+iris.training <- iris[ind==1, 1:278]
+iris.test <- iris[ind==2, 1:278]
+
+# Split the class attribute
+iris.trainingtarget <- iris[ind==1, 279]
+iris.testtarget <- iris[ind==2, 279]
+
+# One hot encode training target values
+iris.trainLabels <- to_categorical(iris.trainingtarget)
+
+# One hot encode test target values
+iris.testLabels <- to_categorical(iris.testtarget)
+
+# Print out the iris.testLabels to double check the result
+print(iris.testLabels)
+
+# Initialize a sequential model
+model <- keras_model_sequential() 
+
+# Add layers to the model
+model %>% 
+  layer_dense(units = 66, activation = 'sigmoid', input_shape = c(278)) %>% 
+  layer_dropout(0.001) %>%
+#  layer_dense(units = 33, activation = 'relu') %>%
+#  layer_dropout(0.01) %>%
+  layer_dense(units = 16, activation = 'softmax')
+
+# Print a summary of a model
+summary(model)
+
+# Compile the model
+model %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = 'adam',
+  metrics = 'accuracy'
+)
+
+# Store the fitting history in `history` 
+history <- model %>% fit(
+  iris.training, 
+  iris.trainLabels, 
+  epochs = 500,
+  batch_size = 5, 
+  validation_split = 0.2
+)
+
+# Plot the history
+plot(history)
+
+# Plot the model loss of the training data
+plot(history$metrics$loss, main="Model Loss", xlab = "epoch", ylab="loss", col="blue", type="l")
+
+# Plot the model loss of the test data
+lines(history$metrics$val_loss, col="green")
+
+# Confusion matrix
+table(iris.testtarget, classes)
+# Add legend
+legend("topright", c("train","test"), col=c("blue", "green"), lty=c(1,1))
+
+# Plot the accuracy of the training data 
+plot(history$metrics$acc, main="Model Accuracy", xlab = "epoch", ylab="accuracy", col="blue", type="l")
+
+# Plot the accuracy of the validation data
+lines(history$metrics$val_acc, col="green")
+
+# Add Legend
+legend("bottomright", c("train","test"), col=c("blue", "green"), lty=c(1,1))
+
+# Predict the classes for the test data
+classes <- model %>% predict(iris.test, batch_size = 128) 
+
+# Predictions representation
+head(classes, 10)
+
+# Evaluate on test data and labels
+score <- model %>% evaluate(iris.test, iris.testLabels, batch_size = 128)
+
+# Print the score
+print(score)
+
